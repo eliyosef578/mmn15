@@ -9,6 +9,7 @@ import aes
 import os
 import base64
 import json
+from datetime import datetime
 
 # Default port
 DEFAULT_PORT = 1357
@@ -46,6 +47,29 @@ def get_port():
         print("Warning: info.port file not found. Using default port {}.".format(DEFAULT_PORT))
         port = DEFAULT_PORT
     return port
+
+def delete_user(conn, user_id):
+    """Deletes the user with the specified ID from the database.
+
+    Args:
+        conn: A connection to the database.
+        user_id: The ID of the user to delete.
+
+    Returns:
+        None.
+    """
+
+    # Create a cursor object.
+    cur = conn.cursor()
+
+    # Execute the SQL statement to delete the user.
+    cur.execute("DELETE FROM clients WHERE id = ?", (user_id,))
+
+    # Commit the changes.
+    conn.commit()
+
+    # Close the cursor object.
+    cur.close()
 
 def insert_client(conn, client):
     """Inserts the client into the database.
@@ -142,11 +166,14 @@ def handle_client_request(client_socket, request_data):
         # Check if the username already exists
         conn = sqlite3.connect(DATABASE_FILE)
         aes_key = base64.b64encode(os.urandom(32)).decode("utf-8")
+        dt = datetime.now()
+        dt_string = dt.isoformat()
+        json_string = json.dumps(dt_string)
         client = {
             "id": str(uuid.uuid4()),
             "name": username,
             "publicKey": None,
-            "lastSeen": None,
+            "lastSeen": json_string,
             "aesKey": aes_key,
         }
 
@@ -157,9 +184,8 @@ def handle_client_request(client_socket, request_data):
             print(f"memory client error:  {client}")
         # Store the client data in the database
         try:
-            print(client)
             client_json = json.dumps(client)
-            print(client_json)
+            # print(client_json)
         except Exception as e:
             print(f"json dumps error:{e}")
 
@@ -170,8 +196,10 @@ def handle_client_request(client_socket, request_data):
 
         # Send the client a success message
         try:
-            print(f"reqeust type is: {request_type}")
+            # print(f"reqeust type is: {request_type}")
+            delete_user(conn, "fe92856c-03ee-4b82-bcfd-1d82562c6fc9")
             print(load_customer_data())
+
             client_socket.send(b"S")
         except Exception as e:
             print(f"failed to send data to client : {e}")
